@@ -191,13 +191,39 @@ inline bool SkFixedNearlyZero(SkFixed x, SkFixed tolerance = SK_FixedNearlyZero)
 #endif
 
 #if defined(SK_CPU_ARM)
+
+#if defined(__thumb__) && !defined(__thumb2__)
+#  define  __SKIA_SWITCH_TO_ARM \
+            "push {r3}\n" \
+            "adr r3, 5f\n" \
+            "bx  r3\n" \
+            ".align\n" \
+            ".arm\n" \
+            "5:\n" \
+            "pop {r3}\n"
+/* note: the leading \n below is intentional */
+#  define __SKIA_SWITCH_TO_THUMB \
+            "\n" \
+            "push {r3}\n" \
+            "adr r3, 6f+1\n" \
+            "bx  r3\n" \
+            ".thumb\n" \
+            "6:\n" \
+            "pop {r3}\n"
+#else
+#  define  __SKIA_SWITCH_TO_ARM   /* nothing */
+#  define  __SKIA_SWITCH_TO_THUMB /* nothing */
+#endif
+
     /* This guy does not handle NaN or other obscurities, but is faster than
        than (int)(x*65536)
     */
     inline SkFixed SkFloatToFixed_arm(float x)
     {
         register int32_t y, z;
-        asm("movs    %1, %3, lsl #1         \n"
+        asm(
+            __SKIA_SWITCH_TO_ARM 
+            "movs    %1, %3, lsl #1         \n"
             "mov     %2, #0x8E              \n"
             "sub     %1, %2, %1, lsr #24    \n"
             "mov     %2, %3, lsl #8         \n"
@@ -205,6 +231,7 @@ inline bool SkFixedNearlyZero(SkFixed x, SkFixed tolerance = SK_FixedNearlyZero)
             "mov     %1, %2, lsr %1         \n"
             "it cs                          \n"
             "rsbcs   %1, %1, #0             \n"
+            __SKIA_SWITCH_TO_THUMB 
             : "=r"(x), "=&r"(y), "=&r"(z)
             : "r"(x)
             : "cc"
@@ -214,9 +241,12 @@ inline bool SkFixedNearlyZero(SkFixed x, SkFixed tolerance = SK_FixedNearlyZero)
     inline SkFixed SkFixedMul_arm(SkFixed x, SkFixed y)
     {
         register int32_t t;
-        asm("smull  %0, %2, %1, %3          \n"
+        asm(
+            __SKIA_SWITCH_TO_ARM 
+            "smull  %0, %2, %1, %3          \n"
             "mov    %0, %0, lsr #16         \n"
             "orr    %0, %0, %2, lsl #16     \n"
+            __SKIA_SWITCH_TO_THUMB 
             : "=r"(x), "=&r"(y), "=r"(t)
             : "r"(x), "1"(y)
             :
@@ -226,9 +256,12 @@ inline bool SkFixedNearlyZero(SkFixed x, SkFixed tolerance = SK_FixedNearlyZero)
     inline SkFixed SkFixedMulAdd_arm(SkFixed x, SkFixed y, SkFixed a)
     {
         register int32_t t;
-        asm("smull  %0, %3, %1, %4          \n"
+        asm(
+            __SKIA_SWITCH_TO_ARM 
+            "smull  %0, %3, %1, %4          \n"
             "add    %0, %2, %0, lsr #16     \n"
             "add    %0, %0, %3, lsl #16     \n"
+            __SKIA_SWITCH_TO_THUMB 
             : "=r"(x), "=&r"(y), "=&r"(a), "=r"(t)
             : "%r"(x), "1"(y), "2"(a)
             :
@@ -238,9 +271,12 @@ inline bool SkFixedNearlyZero(SkFixed x, SkFixed tolerance = SK_FixedNearlyZero)
     inline SkFixed SkFractMul_arm(SkFixed x, SkFixed y)
     {
         register int32_t t;
-        asm("smull  %0, %2, %1, %3          \n"
+        asm(
+            __SKIA_SWITCH_TO_ARM 
+            "smull  %0, %2, %1, %3          \n"
             "mov    %0, %0, lsr #30         \n"
             "orr    %0, %0, %2, lsl #2      \n"
+            __SKIA_SWITCH_TO_THUMB 
             : "=r"(x), "=&r"(y), "=r"(t)
             : "r"(x), "1"(y)
             :
