@@ -139,7 +139,7 @@ start:
 
 extern "C" {
     inline void memcpy_paint_opt(int* src, int* dst) {
-#ifdef ARCH_ARM
+#if __ARM_ARCH__ >= 7
     __asm__ volatile
    (
         "cpy            r4, %1 \n\t"
